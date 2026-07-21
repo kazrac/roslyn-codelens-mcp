@@ -1,0 +1,9 @@
+[mcp_servers.roslyn-codelens]
+command = "dotnet"
+args = [
+    "run",
+    "--project",
+    "src/RoslynCodeLens/RoslynCodeLens.csproj",
+    "--",
+    "RoslynCodeLens.slnx",
+]
