@@ -23,8 +23,14 @@ internal sealed class BackgroundTask : IDisposable
         Cts = new CancellationTokenSource();
     }
 
-    public BackgroundTaskInfo ToInfo() => new(
-        TaskId, ToolName, Status, StartedAt, CompletedAt, Result, ErrorMessage, ErrorCode);
+    public BackgroundTaskInfo ToInfo()
+    {
+        var endedAt = CompletedAt ?? DateTimeOffset.UtcNow;
+        var elapsedSeconds = Math.Max(0, (long)(endedAt - StartedAt).TotalSeconds);
+        return new(
+            TaskId, ToolName, Status, StartedAt, CompletedAt, Result, ErrorMessage, ErrorCode,
+            elapsedSeconds);
+    }
 
     public void Dispose() => Cts.Dispose();
 }

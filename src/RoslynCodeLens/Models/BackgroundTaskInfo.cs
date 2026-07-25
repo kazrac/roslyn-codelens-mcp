@@ -8,4 +8,5 @@ public sealed record BackgroundTaskInfo(
     DateTimeOffset? CompletedAt,
     object? Result,
     string? ErrorMessage,
-    string? ErrorCode);
+    string? ErrorCode,
+    long ElapsedSeconds);

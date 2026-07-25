@@ -43,16 +43,36 @@ public class BackgroundTaskStoreTests
     }
 
     [Fact]
-    public async Task Start_FailedTask_GenericException_DefaultsToInternalCode()
+    public async Task Start_FailedTask_GenericException_PreservesExceptionTypeAndCause()
     {
         using var store = new BackgroundTaskStore();
         var info = store.Start("test_tool",
-            _ => throw new InvalidOperationException("boom"));
+            _ => throw new InvalidOperationException("boom", new ArgumentException("root cause")));
 
         var terminal = await WaitForTerminal(store, info.TaskId).ConfigureAwait(false);
         Assert.Equal(BackgroundTaskStatus.Failed, terminal.Status);
         Assert.Equal("Internal", terminal.ErrorCode);
-        Assert.Equal("boom", terminal.ErrorMessage);
+        Assert.Equal(
+            "InvalidOperationException: boom ---> ArgumentException: root cause",
+            terminal.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Get_RunningTask_ReportsElapsedSeconds()
+    {
+        using var store = new BackgroundTaskStore();
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var info = store.Start("test_tool", async _ =>
+        {
+            await release.Task.ConfigureAwait(false);
+            return (object?)"done";
+        });
+
+        await Task.Delay(25).ConfigureAwait(false);
+        Assert.True(store.Get(info.TaskId)!.ElapsedSeconds >= 0);
+
+        release.SetResult();
+        await WaitForTerminal(store, info.TaskId).ConfigureAwait(false);
     }
 
     [Fact]

@@ -53,7 +53,7 @@ public sealed class BackgroundTaskStore : IDisposable
             catch (Exception ex)
             {
                 task.ErrorCode = nameof(ToolErrorCode.Internal);
-                task.ErrorMessage = ex.Message;
+                task.ErrorMessage = FormatException(ex);
                 task.Status = BackgroundTaskStatus.Failed;
             }
             finally
@@ -102,6 +102,14 @@ public sealed class BackgroundTaskStore : IDisposable
         var adj = s_adjectives[Random.Shared.Next(s_adjectives.Length)];
         var noun = s_nouns[Random.Shared.Next(s_nouns.Length)];
         return $"bg-{toolName}-{adj}-{noun}";
+    }
+
+    private static string FormatException(Exception exception)
+    {
+        var messages = new List<string>();
+        for (var current = exception; current is not null; current = current.InnerException)
+            messages.Add($"{current.GetType().Name}: {current.Message}");
+        return string.Join(" ---> ", messages);
     }
 
     public void Dispose()

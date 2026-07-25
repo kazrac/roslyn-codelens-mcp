@@ -112,19 +112,12 @@ public class SolutionLoader
             return await OpenFilteredAsync(solutionPath, classified, filter, analyzerLoader, ct).ConfigureAwait(false);
         }
 
-        var legacyOrMissing = classified
-            .Where(p => p.Kind is ProjectClassifier.ProjectKind.Legacy
-                     or ProjectClassifier.ProjectKind.Missing
-                     or ProjectClassifier.ProjectKind.Unknown)
-            .ToList();
-
-        var preFilter = legacyOrMissing.Any(p => p.Kind == ProjectClassifier.ProjectKind.Legacy);
-        if (preFilter)
+        var legacyCount = classified.Count(p => p.Kind == ProjectClassifier.ProjectKind.Legacy);
+        if (legacyCount > 0)
         {
             await Console.Error.WriteLineAsync(
-                $"[roslyn-codelens] Detected {legacyOrMissing.Count(p => p.Kind == ProjectClassifier.ProjectKind.Legacy)} legacy non-SDK project(s) in {Path.GetFileName(solutionPath)}; loading SDK-style projects only.")
+                $"[roslyn-codelens] Detected {legacyCount} legacy non-SDK project(s) in {Path.GetFileName(solutionPath)}; attempting full solution load.")
                 .ConfigureAwait(false);
-            return await OpenPerProjectAsync(solutionPath, classified, analyzerLoader, ct).ConfigureAwait(false);
         }
 
         await Console.Error.WriteLineAsync($"[roslyn-codelens] Loading solution: {Path.GetFileName(solutionPath)}").ConfigureAwait(false);

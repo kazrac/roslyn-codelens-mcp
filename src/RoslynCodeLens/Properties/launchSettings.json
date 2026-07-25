@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "RoslynCodeLens": {
+      "commandName": "Project",
+      "commandLineArgs": "C:\\Users\\User\\Documents\\Repositories\\mrorange.ibe2\\mrorange.sln"
+    }
+  }
+}

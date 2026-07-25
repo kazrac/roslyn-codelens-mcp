@@ -9,7 +9,7 @@ namespace RoslynCodeLens.Tools;
 public static class GetTaskStatusTool
 {
     [McpServerTool(Name = "get_task_status"),
-     Description("Get the current status of a background task by its taskId.")]
+     Description("Get the current status of a background task by its taskId, including elapsedSeconds while it is still running and the full exception type/cause chain if it failed.")]
     public static BackgroundTaskInfo Execute(
         BackgroundTaskStore store,
         [Description("The taskId returned by start_background_task")] string taskId)
