@@ -1,7 +1,10 @@
 # Roslyn CodeLens MCP Server
 
+[![MCP Toplist](https://mcptoplist.com/badge/io.github.MarcelRoozekrans%2Froslyn-codelens.svg)](https://mcptoplist.com/server/io.github.MarcelRoozekrans%2Froslyn-codelens)
+
 [![NuGet](https://img.shields.io/nuget/v/RoslynCodeLens.Mcp?style=flat-square&logo=nuget&color=blue)](https://www.nuget.org/packages/RoslynCodeLens.Mcp)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/RoslynCodeLens.Mcp?style=flat-square&color=green)](https://www.nuget.org/packages/RoslynCodeLens.Mcp)
+[![npm](https://img.shields.io/npm/v/roslyn-codelens-mcp?style=flat-square&logo=npm&color=cb3837)](https://www.npmjs.com/package/roslyn-codelens-mcp)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/MarcelRoozekrans/roslyn-codelens-mcp/ci.yml?branch=main&style=flat-square&logo=github)](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/actions)
 [![License](https://img.shields.io/github/license/MarcelRoozekrans/roslyn-codelens-mcp?style=flat-square)](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/blob/main/LICENSE)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue?style=flat-square)](https://marcelroozekrans.github.io/roslyn-codelens-mcp/)
@@ -31,7 +34,8 @@ A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/marcel
 - **find_uncovered_symbols** — Public methods and properties no test transitively reaches; sorted by cyclomatic complexity for prioritization
 - **generate_test_skeleton** — Emit a compilable test-class skeleton (as text) for a method or type. Auto-detects xUnit/NUnit/MSTest; surfaces constructor dependencies as TodoNotes; returns a suggested file path. Closes the loop with `find_uncovered_symbols`
 - **get_type_hierarchy** — Walk base classes, interfaces, and derived types
-- **get_di_registrations** — Scan for DI service registrations
+- **get_di_registrations** — Scan for DI service registrations. Reads generic (`AddSingleton<IFoo, Foo>()`), single-generic, `typeof` pair and factory-lambda forms
+- **get_instantiation_options** — "How do I construct this type?" in one call: constructors with full parameter detail, static factory methods declared anywhere in the solution (including on a separate factory type), DI registrations, and `required` members. Pass `fromProject` to learn whether *that* project can actually reach each option — it honours `InternalsVisibleTo`, so it answers "can my test project call this internal constructor?"
 - **get_project_dependencies** — Get the project reference graph
 - **get_symbol_context** — One-shot context dump for any type
 - **get_public_api_surface** — Enumerate every public/protected type and member in production projects; flat, deterministically-sorted list suitable for API review or breaking-change baselines.
@@ -52,7 +56,7 @@ A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/marcel
 - **find_obsolete_usage** — Every `[Obsolete]` call site grouped by deprecation message and severity, errors first; for planning migrations
 - **find_circular_dependencies** — Detect cycles in project or namespace dependency graphs
 - **check_architecture** — Enforce layering rules you supply (`forbid` and `allowOnly`) against the real semantic type graph rather than `using` directives; violations are grouped per boundary with a reference count and example sites
-- **get_complexity_metrics** — Cyclomatic complexity analysis per method
+- **get_complexity_metrics** — Cyclomatic complexity, cognitive complexity and max nesting depth per member (methods, constructors, properties, indexers, operators). Cyclomatic counts paths and starts at 1; cognitive measures how hard the code is to follow and starts at 0. `metric` picks which one the threshold and sort use — cognitive is the better refactoring-priority signal, cyclomatic the better test-budget one
 - **find_naming_violations** — Check .NET naming convention compliance
 - **find_async_violations** — Sync-over-async, `async void` misuse, missing awaits, fire-and-forget tasks; per-violation report with severity
 - **find_disposable_misuse** — `IDisposable`/`IAsyncDisposable` instances not wrapped in `using`/`await using`/returned/assigned to field; severity error/warning per violation.
@@ -114,7 +118,7 @@ Tools that include a `summary` aggregate today:
 - `search_symbols`, `find_reflection_usage` — `{ byKind: {...} }`
 - `find_unused_symbols` — `{ byKind, filteredOut: { testMethod, testContainer, mcpTool, generated, composition, interop } }`
 - `find_naming_violations` — `{ byRule: {...} }`
-- `get_complexity_metrics` — `{ max, avg, overThreshold }`
+- `get_complexity_metrics` — `{ max, avg, overThreshold, maxCognitive }` (the first three describe the selected `metric`)
 
 Single-object tools (`get_type_overview`, `get_symbol_context`, `apply_code_action`, etc.) return their bespoke shape directly — the envelope only wraps list-returning tools.
 
@@ -170,6 +174,24 @@ See [SECURITY.md](SECURITY.md) for the full threat model.
 
 ## Quick Start
 
+### npx (any MCP client)
+
+```json
+{
+  "mcpServers": {
+    "roslyn-codelens": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "roslyn-codelens-mcp"]
+    }
+  }
+}
+```
+
+The npm package ships no server code — it is a launcher that installs the `RoslynCodeLens.Mcp`
+.NET global tool at a matching version and execs it, so the **.NET 10 SDK must be on `PATH`**.
+Subsequent starts skip the install entirely and work offline.
+
 ### VS Code / Visual Studio (via dnx)
 
 Add to your MCP settings (`.vscode/mcp.json` or VS settings):
@@ -211,6 +233,19 @@ Then add to your MCP client config:
   }
 }
 ```
+
+### Docker
+
+Runs without a .NET SDK on the host; the solution is bind-mounted at `/workspace`.
+
+```bash
+docker build -t roslyn-codelens-mcp .
+docker run -i --rm -v "$PWD:/workspace" roslyn-codelens-mcp
+```
+
+The mounted solution must be restored for `MSBuildWorkspace` to resolve its
+references, and tool output reports container paths rather than host paths — see
+[docs/site/docs/getting-started/docker.md](docs/site/docs/getting-started/docker.md).
 
 ## Usage
 

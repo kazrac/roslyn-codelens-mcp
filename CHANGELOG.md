@@ -1,5 +1,56 @@
 # Changelog
 
+## [2.16.1](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/compare/v2.16.0...v2.16.1) (2026-07-28)
+
+
+### Bug Fixes
+
+* **ci:** re-authenticate on every MCP Registry publish attempt ([#352](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/issues/352)) ([831db6e](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/commit/831db6e6c19dbe81fcbed45274475d9f11b707ad))
+
+## [2.16.0](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/compare/v2.15.0...v2.16.0) (2026-07-28)
+
+
+### Features
+
+* Docker support and glama.json for Glama indexing ([#348](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/issues/348)) ([ece420e](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/commit/ece420e2f8e430724389808e1a37a44275977c3f))
+
+
+### Bug Fixes
+
+* **docs:** document the solution arguments the server actually accepts ([#350](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/issues/350)) ([dd695d8](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/commit/dd695d8db7f274d8fddef1467a0e1c62cf4dd04c))
+
+## [2.15.0](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/compare/v2.14.0...v2.15.0) (2026-07-28)
+
+
+### Features
+
+* publish an npm launcher package for npx installs ([#345](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/issues/345)) ([57d1012](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/commit/57d10124475190009cc8dd8ab35bff17582f7d09))
+
+## [2.14.0](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/compare/v2.13.0...v2.14.0) (2026-07-22)
+
+
+### Features
+
+* cognitive complexity and nesting depth, and correct three cyclomatic defects ([#338](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/issues/338)) ([8f1712a](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/commit/8f1712a42dc6de2bb129b88101cea183fe250040))
+
+
+### Bug Fixes
+
+* **deps:** keep brace-expansion on 1.x — v5 breaks minimatch at runtime ([#334](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/issues/334)) ([0176e8d](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/commit/0176e8d00dae3eba97b28e0f203f5af7482758f7))
+* **trust:** survive transient file locks when persisting trust ([#337](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/issues/337)) ([3c19b49](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/commit/3c19b49b3ddeef82844afac0242ffa25f6e69713))
+
+## [2.13.0](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/compare/v2.12.0...v2.13.0) (2026-07-22)
+
+
+### Features
+
+* get_instantiation_options — how do I construct this type ([#327](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/issues/327)) ([d17352c](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/commit/d17352c33ca043118fb29f68eb9a06655999ff3b))
+
+
+### Bug Fixes
+
+* **deps:** pin brace-expansion to 1.1.16 to clear the DoS alert ([#329](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/issues/329)) ([7f4201b](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/commit/7f4201b43c0fe93fb468d9ee524b8e1c1ec03b0e))
+
 ## [2.12.0](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp/compare/v2.11.1...v2.12.0) (2026-07-21)
 
 

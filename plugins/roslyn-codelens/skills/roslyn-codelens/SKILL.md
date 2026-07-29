@@ -29,7 +29,7 @@ Tools that include a `summary` aggregate:
 - `search_symbols`, `find_reflection_usage` — `{ byKind: {...} }`
 - `find_unused_symbols` — `{ byKind: {...}, filteredOut: { testMethod, testContainer, mcpTool, generated, composition, interop } }`
 - `find_naming_violations` — `{ byRule: {...} }`
-- `get_complexity_metrics` — `{ max, avg, overThreshold }`
+- `get_complexity_metrics` — `{ max, avg, overThreshold, maxCognitive }` — `max`/`avg`/`overThreshold` describe whichever metric `metric` selected; `maxCognitive` is always the cognitive one
 - `resolve_stack_trace` — `{ byOrigin: { source, metadata, unresolved }, exceptions, skippedFrameLike }` — `skippedFrameLike` counts frame-like-but-unparseable lines (also present in items as `Kind="unknown"`)
 
 Single-object tools (`get_type_overview`, `get_symbol_context`, `apply_code_action`, etc.) are unchanged — they return their bespoke shape directly.
@@ -90,8 +90,9 @@ If any of these thoughts cross your mind, stop and switch to the MCP tool:
 | "I'll check if this method is used by reading files" | `find_callers` / `find_unused_symbols` |
 | "What overloads does this method have?" / "Show me all signatures of Foo" / "Compare overloads side-by-side" | `get_overloads` |
 | "What can I call on this type?" / "Is there an extension method for X?" / "Does LINQ have something for this?" | `get_extension_methods` |
+| "How do I construct this?" / "What constructors does it have?" / "Why can't I `new` this up?" / "Can my test project reach this internal constructor?" | `get_instantiation_options` |
 | "What operators does this type define?" / "Does it have a custom `==` or implicit conversion?" / "List `+`, `-`, conversions on this type" | `get_operators` |
-| "I'll eyeball complexity by reading the method" | `get_complexity_metrics` |
+| "I'll eyeball complexity by reading the method" / "This one looks like the hairiest, let's start there" | `get_complexity_metrics` (use `metric: "cognitive"` to rank by how hard code is to follow) |
 | "How is this project doing?" / "Where should I focus?" / "Show me the technical debt picture" | `get_project_health` |
 | "Which classes are doing too much?" / "Where are my god classes?" / "Worst design smells in this codebase?" | `find_god_objects` |
 | "Let me `Grep` for tests that call this method" | `find_tests_for_symbol` |
@@ -177,6 +178,7 @@ Inspect an arbitrary DLL           → add a <ProjectReference> to a throwaway
 - `get_overloads` — Every overload of a method or constructor (source + metadata) with full parameter detail, modifiers, generic type params, XML doc summary, and location. One call instead of N analyze_method calls.
 - `get_operators` — every `+`, `-`, `==`, `<`, conversion, etc. on a type, with kind, signature, source location. Includes synthesized record equality. Covers what `get_overloads` excludes.
 - `get_extension_methods` — every extension member applicable to a type, from the solution AND referenced assemblies, so LINQ shows up for an `IEnumerable`. Applicability is Roslyn's own (`ReduceExtensionMethod`), so generic inference is exact: `this IEnumerable<T>` applies to `string`, `this IEnumerable<string>` does not. `signature` is the reduced, call-site form — receiver dropped, inference applied, return type first for both kinds (`IEnumerable<int> Where<int>(Func<int, bool>)`, `int Tripled`). It is a signature, not paste-ready source: a partially inferred generic keeps the type parameters still inferred from the arguments (`Select<int, TResult>` — `int` came from the receiver, `TResult` from your lambda). C# 14 `extension` blocks are covered including **properties** and **static methods**, neither of which an `IsExtensionMethod` scan can see. Check `isStatic` before writing the call: `false` (the normal case, including every classic `this` extension, which is declared static but called on an instance) means `value.Doubled()`; `true` means a C# 14 static extension member, called on the type — `int.Zero`. Receivers may be arrays, nullables or tuples (`string[]`, `int?`, `(int, string)`) as well as plain and constructed generic types. Results are **not** filtered by `using` scope — the tool has no call site — so `namespace` is always reported and you may need to add the import. Source extensions sort before metadata ones; `nameFilter` narrows by substring.
+- `get_instantiation_options` — how to construct a type, in one call: `constructors` (every parameter's type and name, declared accessibility, `isImplicit`, `isObsolete`), `factories`, `diRegistrations`, and `requiredMembers` you must set in an object initializer. **Read `isImplicit` before concluding a type has no constructor** — a struct, and a class with none declared, both have a usable parameterless one that no source file mentions. `factories` are static members returning the type from ANYWHERE in the solution, which is the case that matters: a type with a private constructor and a separate `WidgetFactory.Create()` looks uninstantiable until you see them. `Task<T>`/`ValueTask<T>` factories are unwrapped and flagged `isAsync`; instance builder methods are excluded because the builder itself needs constructing. Pass `fromProject` to get `accessible` computed from that project's viewpoint, honouring `InternalsVisibleTo` — `accessible: null` means *not computed* (no `fromProject` given), never "inaccessible". For interfaces, abstract and static classes, `instantiable` is false and `note` says why; follow up with `find_implementations`.
 - `get_call_graph` — Transitive caller/callee graph for a method, depth-bounded with cycle detection. Adjacency-list output. Use when you need depth > 1 (`analyze_method` is depth=1).
 
 ### Navigating Code (**instead of Grep/Glob**)
@@ -233,7 +235,12 @@ Solutions passed on the CLI at server startup are auto-trusted in session scope 
 
 ### Code Quality Analysis
 - `find_unused_symbols` — dead code (reference-based). Auto-filters test methods, MCP tool entry points, source-generator output, MEF-composed services, and interop-laid-out fields; counts surface in `summary.filteredOut`.
-- `get_complexity_metrics` — cyclomatic complexity per method.
+- `get_complexity_metrics` — complexity per member (methods, constructors, properties, indexers, operators). Reports **three** numbers per row:
+  - `complexity` — cyclomatic: how many independent paths run through the member. **Starts at 1**, so a straight-line method scores 1. Good for "how many tests do I need".
+  - `cognitive` — how hard the member is to *follow*: nested structures cost more than flat ones, a whole `switch` costs 1 rather than one per case, and `else`/`else if` cost 1 without a nesting penalty. **Starts at 0** — a `cognitive` of 0 is not a bug, it means nothing branches.
+  - `maxNesting` — the deepest control structure, counting lambda and local-function bodies.
+
+  **Which to use:** `cognitive` is the better *refactoring-priority* signal — it is what separates a flat 20-case dispatch (easy) from four levels of nested `if` (hard), which cyclomatic scores the same. Use `cyclomatic` for test-coverage budgeting. The `metric` parameter (`"cyclomatic"` default, or `"cognitive"`) selects which one `threshold` filters on and the sort orders by; both numbers are always in the response. `summary` reports `max`/`avg`/`overThreshold` over the selected metric plus `maxCognitive` alongside.
 - `find_naming_violations` — .NET naming conventions.
 - `find_async_violations` — Detects sync-over-async (`.Result`/`.Wait()`/`GetAwaiter().GetResult()`), `async void` outside event handlers, missing awaits in async methods, and fire-and-forget tasks. Severity error/warning per violation. Static analysis; no runtime data.
 - `find_disposable_misuse` — Detects `IDisposable`/`IAsyncDisposable` instances not wrapped in `using`/`await using`/returned/assigned-to-field-or-out-parameter (warning), and bare-expression-statement discards of a disposable creator/factory (error). Static analysis; no runtime data.
@@ -354,7 +361,7 @@ Reference concrete types, interfaces, and call sites in your analysis. Not *"the
 | `change_signature` | "Add/remove/reorder a parameter and fix all the callers" |
 | `resolve_stack_trace` | "Where did this exception come from?" / "Resolve this stack trace" |
 | `find_unused_symbols` | "Any dead code?" |
-| `get_complexity_metrics` | "Which methods are too complex?" |
+| `get_complexity_metrics` | "Which methods are too complex?" / "What should I refactor first?" (`metric: "cognitive"`) / "How deeply nested is this?" |
 | `find_naming_violations` | "Check naming conventions" |
 | `find_async_violations` | "Are there async bugs?" / "Find sync-over-async" |
 | `find_disposable_misuse` | "Are there resource leaks?" / "Find missing `using`" |
@@ -386,6 +393,7 @@ Reference concrete types, interfaces, and call sites in your analysis. Not *"the
 | `get_method_source` | "Show me this method's body" / "Give me the source of these members" |
 | `get_overloads` | "What overloads does this method have?" |
 | `get_extension_methods` | "What can I call on this type?" / "Is there an extension for X?" |
+| `get_instantiation_options` | "How do I construct this?" / "Why can't I `new` this up?" |
 | `get_operators` | "What operators does this type define?" |
 | `get_call_graph` | "Transitive callers/callees, depth-bounded" |
 | `get_file_overview` | "What types are in this file?" |
